@@ -33,6 +33,14 @@ class ExtractionMethod(Enum):
     OCR = "ocr"
 
 
+class PageClassification(Enum):
+    """Page-level extraction strategy classification."""
+    NATIVE = "native"
+    OCR_REQUIRED = "ocr_required"
+    EMPTY = "empty"
+    SUSPICIOUS = "suspicious"
+
+
 @dataclass(slots=True)
 class BoundingBox:
     """
@@ -140,12 +148,18 @@ class Page:
         height: page height in PDF points
         blocks: content blocks on this page
         rotation: page rotation in degrees (0, 90, 180, 270)
+        classification: page extraction classification (provisional M2)
+        classification_reason: human-readable classification explanation (provisional M2)
+        warnings: non-fatal diagnostics from extraction
     """
     number: int
     width: float
     height: float
     blocks: list[Block] = field(default_factory=list)
     rotation: int = 0
+    classification: Optional[PageClassification] = None
+    classification_reason: Optional[str] = None
+    warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -154,16 +168,25 @@ class Page:
             "height": self.height,
             "blocks": [b.to_dict() for b in self.blocks],
             "rotation": self.rotation,
+            "classification": self.classification.value if self.classification else None,
+            "classification_reason": self.classification_reason,
+            "warnings": self.warnings,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> "Page":
+        classification = None
+        if data.get("classification"):
+            classification = PageClassification(data["classification"])
         return cls(
             number=data["number"],
             width=data["width"],
             height=data["height"],
             blocks=[Block.from_dict(b) for b in data.get("blocks", [])],
             rotation=data.get("rotation", 0),
+            classification=classification,
+            classification_reason=data.get("classification_reason"),
+            warnings=data.get("warnings", []),
         )
 
 

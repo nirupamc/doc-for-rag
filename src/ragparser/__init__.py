@@ -7,6 +7,7 @@ from ragparser.ir import (
     Document,
     ExtractionMethod,
     Page,
+    PageClassification,
 )
 from ragparser.parser import DocumentParser
 
@@ -17,5 +18,6 @@ __all__ = [
     "Document",
     "ExtractionMethod",
     "Page",
+    "PageClassification",
     "DocumentParser",
 ]

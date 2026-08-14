@@ -65,14 +65,24 @@ def info(
         readable=True,
         help="Path to input PDF document",
     ),
+    analyze: bool = typer.Option(
+        True,
+        "--analyze/--no-analyze",
+        help="Show per-page analysis (classification, signals)",
+    ),
 ) -> None:
     """
-    Show basic document information without full extraction.
+    Show document information with optional per-page analysis.
     """
     parser = DocumentParser()
 
     try:
-        doc = parser.parse(input_path)
+        if analyze:
+            analyses = parser.analyze(input_path)
+            doc = parser.parse(input_path)
+        else:
+            doc = parser.parse(input_path)
+            analyses = []
     except FileNotFoundError as e:
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1)
@@ -86,10 +96,28 @@ def info(
     if doc.warnings:
         typer.echo(f"Warnings: {doc.warnings}")
 
-    for page in doc.pages:
+    for i, page in enumerate(doc.pages):
         block_count = len(page.blocks)
         text_chars = sum(len(b.text) for b in page.blocks)
-        typer.echo(f"  Page {page.number}: {block_count} blocks, {text_chars} chars")
+
+        if analyze and i < len(analyses):
+            a = analyses[i]
+            s = a.signals
+            typer.echo(f"  Page {page.number}:")
+            typer.echo(f"    Classification: {a.classification.value.upper()}")
+            typer.echo(f"    Reason: {a.reason}")
+            typer.echo(f"    Native chars: {s.native_char_count}")
+            typer.echo(f"    Native blocks: {s.native_block_count}")
+            typer.echo(f"    Images: {s.image_count}")
+            typer.echo(f"    Largest image coverage: {s.largest_image_coverage:.1%}")
+            if s.summed_image_area_ratio > 0:
+                typer.echo(f"    Summed image area ratio: {s.summed_image_area_ratio:.1%}")
+            if s.drawing_count > 0:
+                typer.echo(f"    Drawings: {s.drawing_count}")
+            if page.warnings:
+                typer.echo(f"    Warnings: {page.warnings}")
+        else:
+            typer.echo(f"  Page {page.number}: {block_count} blocks, {text_chars} chars")
 
 
 if __name__ == "__main__":
