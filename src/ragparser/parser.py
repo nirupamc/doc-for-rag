@@ -1,8 +1,9 @@
 """High-level DocumentParser API."""
 
 from pathlib import Path
-from ragparser.ir import Document
+from ragparser.ir import Document, ExtractionMethod, ExtractionStatus
 from ragparser.backends.native import DocumentLoader, NativeExtractor
+from ragparser.backends.ocr import TesseractOCRBackend
 from ragparser.analysis import PageAnalyzer, ExtractionRouter, ExtractionStrategy
 
 
@@ -18,6 +19,7 @@ class DocumentParser:
         self._analyzer = PageAnalyzer()
         self._router = ExtractionRouter()
         self._native_extractor = NativeExtractor()
+        self._ocr_backend = TesseractOCRBackend()
 
     def parse(self, path: str | Path) -> Document:
         """
@@ -76,16 +78,14 @@ class DocumentParser:
         if strategy == ExtractionStrategy.NATIVE:
             # Full native extraction
             ir_page = self._native_extractor.extract_page(page, page_number)
+            ir_page.extraction_status = ExtractionStatus.SUCCESS
+            ir_page.extraction_method = ExtractionMethod.NATIVE
 
         elif strategy == ExtractionStrategy.OCR_REQUIRED:
-            # Placeholder for M3 OCR
-            ir_page = Page(
-                number=page_number,
-                width=page_width,
-                height=page_height,
-                blocks=[],
-            )
-            ir_page.warnings = ["OCR required but not available in M2"]
+            # OCR extraction
+            ir_page = self._ocr_backend.extract_page(page, page_number)
+            # classification already set to OCR_REQUIRED by analyzer
+            # extraction_method and extraction_status set by OCR backend
 
         elif strategy == ExtractionStrategy.EMPTY:
             # No extraction needed
@@ -95,10 +95,14 @@ class DocumentParser:
                 height=page_height,
                 blocks=[],
             )
+            ir_page.extraction_status = ExtractionStatus.SUCCESS
+            ir_page.extraction_method = ExtractionMethod.NATIVE
 
         elif strategy == ExtractionStrategy.SUSPICIOUS:
-            # Extract what we can, add warning
+            # Extract what we can with native, add warning
             ir_page = self._native_extractor.extract_page(page, page_number)
+            ir_page.extraction_status = ExtractionStatus.SUCCESS
+            ir_page.extraction_method = ExtractionMethod.NATIVE
             ir_page.warnings = [f"Classification: suspicious — {analysis.reason}"]
 
         else:

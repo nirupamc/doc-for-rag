@@ -180,3 +180,123 @@ Page 3: Classification: EMPTY, Native chars: 0, Images: 0
 Page 4: Classification: NATIVE, Native chars: 1, Images: 0
 Page 5: Classification: SUSPICIOUS, Native text (6 chars) but large image covers 83.4%
 ```
+
+---
+
+## 2026-08-15: Milestone 3 — OCR Backend + OCR Routing
+
+### Decision: Separate PageClassification from ExtractionStatus
+
+**Context:** Classification describes what PageAnalyzer determined about the page. Extraction status describes what happened when RagParser attempted extraction.
+
+**Decision:** Keep `PageClassification` unchanged. Add `extraction_status` (SUCCESS/FAILED) and `extraction_method` (NATIVE/OCR) to `Page`.
+
+**Example:**
+```
+classification = OCR_REQUIRED
+extraction_method = OCR
+extraction_status = FAILED
+```
+
+If Tesseract fails, the original `OCR_REQUIRED` classification remains valid — it describes the page, not the outcome.
+
+---
+
+### Decision: No Semantic Paragraph Claims for Tesseract Blocks
+
+**Finding:** Tesseract's `block_num` hierarchy provides geometric grouping (text regions), not semantic paragraphs.
+
+**M3 behavior:** OCR produces coarse text regions with bbox, text, confidence, reading order. No `PARAGRAPH`, `HEADING`, `HEADER`, `FOOTER` labels.
+
+**Rationale:** Semantic interpretation belongs to later layout/structure stages. Keep native and OCR extraction at the same abstraction level (coarse geometric blocks).
+
+---
+
+### Decision: Correct Rotation Handling via derotation_matrix
+
+**Experiment:** Tested coordinate spaces for 0°, 90°, 180°, 270° pages.
+
+**Coordinate chain verified:**
+1. **Native text bbox** → page coordinates (consistent regardless of rotation)
+2. **page.get_pixmap()** → image matches visual orientation (page.rect dimensions)
+3. **OCR pixels** → page coordinates: `page_x = pixel_x * page.rect.width / pix.width`
+4. **Page coordinates** → canonical coordinates: `canonical = page_point * page.derotation_matrix`
+
+**Key finding:** `page.derotation_matrix` correctly maps page coords → canonical coords for all rotations. The transformation chain:
+- OCR on rendered image (visual orientation)
+- Convert pixels → page coords using `page.rect` (matches pixmap)
+- Apply `derotation_matrix` → canonical coords
+
+**Tested canonical bboxes for text at page (72, 59):**
+- 0°: (72, 59, 168, 75.6) ✓
+- 90°: (59, 624, 75.6, 720) ✓
+- 180°: (444, 716, 540, 733) ✓
+- 270°: (536, 72, 553, 168) ✓
+
+---
+
+### Decision: Distinguish OCR Execution Failure from Empty Result
+
+| Scenario | extraction_status | extraction_method | warning |
+|----------|-------------------|-------------------|---------|
+| Tesseract missing | FAILED | OCR | "Tesseract not available..." |
+| Page render exception | FAILED | OCR | "Page rendering failed..." |
+| Tesseract process error | FAILED | OCR | "TesseractError: ..." |
+| OCR runs, no text found | SUCCESS | OCR | "OCR completed successfully but recovered no usable text." |
+| OCR runs, text found | SUCCESS | OCR | (none) |
+
+**Rationale:** Empty OCR result is NOT a backend failure — it indicates the classifier may have routed a non-textual image page to OCR. This diagnostic evidence can improve future classification.
+
+---
+
+### Decision: OCR Confidence Normalization
+
+**Tesseract confidence:** 0-100 scale (higher = more confident), -1 sentinel for non-text.
+
+**M3 normalization:** Median of word confidences per block, divided by 100 → 0.0-1.0.
+
+**IR documentation:** `Block.confidence` for OCR = median Tesseract word confidence normalized to 0.0-1.0. For NATIVE = None.
+
+---
+
+### Decision: Architecture Supports Future Hybrid Extraction
+
+**Current routing:**
+```
+NATIVE → native backend
+OCR_REQUIRED → OCR backend
+EMPTY → empty page
+SUSPICIOUS → native + warning
+```
+
+**Designed for M4+ hybrid:**
+```
+OCR_REQUIRED → OCR backend
+SUSPICIOUS → native + OCR → merge → HYBRID
+```
+
+No redesign needed — just add hybrid strategy to router and merge logic to parser.
+
+---
+
+### Decision: Duplicate get_text("dict") Accepted in M3
+
+**Fact:** `PageAnalyzer` calls `get_text("dict")` for signals. `NativeExtractor` calls it again for blocks. OCR backend doesn't call it.
+
+**Position:** Accept for M3. Profile before optimizing.
+
+---
+
+### CLI Inspection: Classification vs Extraction Method
+
+```
+$ ragparser info mixed_document.pdf
+Page 1: Classification: NATIVE, Extraction method: NATIVE, Extraction status: SUCCESS
+Page 2: Classification: OCR_REQUIRED, Extraction method: OCR, Extraction status: FAILED
+  Warnings: ["OCR failed [Tesseract not available. Install tesseract-ocr and ensure it's in PATH.]"]
+Page 3: Classification: EMPTY, Extraction method: NATIVE, Extraction status: SUCCESS
+Page 4: Classification: NATIVE, Extraction method: NATIVE, Extraction status: SUCCESS
+Page 5: Classification: SUSPICIOUS, Extraction method: NATIVE, Extraction status: SUCCESS
+```
+
+The distinction matters: classification is the *decision*, extraction_method is what *actually ran*.

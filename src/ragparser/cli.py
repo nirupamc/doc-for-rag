@@ -105,6 +105,10 @@ def info(
             s = a.signals
             typer.echo(f"  Page {page.number}:")
             typer.echo(f"    Classification: {a.classification.value.upper()}")
+            if page.extraction_method:
+                typer.echo(f"    Extraction method: {page.extraction_method.value.upper()}")
+            if page.extraction_status:
+                typer.echo(f"    Extraction status: {page.extraction_status.value.upper()}")
             typer.echo(f"    Reason: {a.reason}")
             typer.echo(f"    Native chars: {s.native_char_count}")
             typer.echo(f"    Native blocks: {s.native_block_count}")
@@ -118,6 +122,10 @@ def info(
                 typer.echo(f"    Warnings: {page.warnings}")
         else:
             typer.echo(f"  Page {page.number}: {block_count} blocks, {text_chars} chars")
+            if page.extraction_method:
+                typer.echo(f"    Extraction method: {page.extraction_method.value.upper()}")
+            if page.extraction_status:
+                typer.echo(f"    Extraction status: {page.extraction_status.value.upper()}")
 
 
 if __name__ == "__main__":

@@ -10,8 +10,12 @@ from ragparser.analysis import (
     ExtractionRouter,
     ExtractionStrategy,
 )
+from ragparser.ir import (
+    PageClassification as IRPageClassification,
+    ExtractionMethod,
+    ExtractionStatus,
+)
 from ragparser.parser import DocumentParser
-from ragparser.ir import PageClassification as IRPageClassification
 
 
 class TestPageSignals:
@@ -325,13 +329,16 @@ class TestDocumentParserIntegration:
         assert doc.pages[0].classification == IRPageClassification.EMPTY
         assert len(doc.pages[0].blocks) == 0
 
-    def test_parse_scanned_page_placeholder(self, scanned_page_pdf):
+    def test_parse_scanned_page_ocr_failed(self, scanned_page_pdf):
         parser = DocumentParser()
         doc = parser.parse(scanned_page_pdf)
         assert doc.page_count == 1
         assert doc.pages[0].classification == IRPageClassification.OCR_REQUIRED
+        assert doc.pages[0].extraction_method == ExtractionMethod.OCR
+        assert doc.pages[0].extraction_status == ExtractionStatus.FAILED
         assert len(doc.pages[0].blocks) == 0
-        assert "OCR required" in doc.pages[0].warnings[0]
+        assert "OCR failed" in doc.pages[0].warnings[0]
+        assert "Tesseract not available" in doc.pages[0].warnings[0]
 
     def test_parse_mixed_page(self, mixed_page_pdf):
         parser = DocumentParser()

@@ -6,6 +6,7 @@ from ragparser.ir import (
     BoundingBox,
     Document,
     ExtractionMethod,
+    ExtractionStatus,
     Page,
     PageClassification,
 )
@@ -17,6 +18,7 @@ __all__ = [
     "BoundingBox",
     "Document",
     "ExtractionMethod",
+    "ExtractionStatus",
     "Page",
     "PageClassification",
     "DocumentParser",

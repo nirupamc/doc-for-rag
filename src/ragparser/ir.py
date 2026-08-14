@@ -41,6 +41,12 @@ class PageClassification(Enum):
     SUSPICIOUS = "suspicious"
 
 
+class ExtractionStatus(Enum):
+    """Result of extraction execution."""
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 @dataclass(slots=True)
 class BoundingBox:
     """
@@ -150,6 +156,8 @@ class Page:
         rotation: page rotation in degrees (0, 90, 180, 270)
         classification: page extraction classification (provisional M2)
         classification_reason: human-readable classification explanation (provisional M2)
+        extraction_status: result of extraction execution (M3)
+        extraction_method: actual extraction method used (M3)
         warnings: non-fatal diagnostics from extraction
     """
     number: int
@@ -159,6 +167,8 @@ class Page:
     rotation: int = 0
     classification: Optional[PageClassification] = None
     classification_reason: Optional[str] = None
+    extraction_status: Optional[ExtractionStatus] = None
+    extraction_method: Optional[ExtractionMethod] = None
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -170,6 +180,8 @@ class Page:
             "rotation": self.rotation,
             "classification": self.classification.value if self.classification else None,
             "classification_reason": self.classification_reason,
+            "extraction_status": self.extraction_status.value if self.extraction_status else None,
+            "extraction_method": self.extraction_method.value if self.extraction_method else None,
             "warnings": self.warnings,
         }
 
@@ -178,6 +190,12 @@ class Page:
         classification = None
         if data.get("classification"):
             classification = PageClassification(data["classification"])
+        extraction_status = None
+        if data.get("extraction_status"):
+            extraction_status = ExtractionStatus(data["extraction_status"])
+        extraction_method = None
+        if data.get("extraction_method"):
+            extraction_method = ExtractionMethod(data["extraction_method"])
         return cls(
             number=data["number"],
             width=data["width"],
@@ -186,6 +204,8 @@ class Page:
             rotation=data.get("rotation", 0),
             classification=classification,
             classification_reason=data.get("classification_reason"),
+            extraction_status=extraction_status,
+            extraction_method=extraction_method,
             warnings=data.get("warnings", []),
         )
 

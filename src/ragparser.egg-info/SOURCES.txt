@@ -9,6 +9,17 @@ src/ragparser.egg-info/SOURCES.txt
 src/ragparser.egg-info/dependency_links.txt
 src/ragparser.egg-info/requires.txt
 src/ragparser.egg-info/top_level.txt
+src/ragparser/analysis/__init__.py
+src/ragparser/analysis/analyzer.py
+src/ragparser/analysis/classifier.py
+src/ragparser/analysis/router.py
+src/ragparser/analysis/signals.py
 src/ragparser/backends/__init__.py
 src/ragparser/backends/base.py
 src/ragparser/backends/native.py
+src/ragparser/backends/ocr.py
+tests/test_analysis.py
+tests/test_cli.py
+tests/test_ir.py
+tests/test_native_backend.py
+tests/test_parser.py
