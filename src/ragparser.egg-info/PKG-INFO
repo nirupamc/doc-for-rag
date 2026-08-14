@@ -1,0 +1,47 @@
+Metadata-Version: 2.4
+Name: ragparser
+Version: 0.1.0
+Summary: RagParser - Document parsing pipeline for RAG applications
+Author: RagParser Contributors
+License: MIT
+Project-URL: Homepage, https://github.com/example/ragparser
+Project-URL: Repository, https://github.com/example/ragparser
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pymupdf>=1.23.0
+Requires-Dist: typer>=0.9.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"
+Requires-Dist: ruff>=0.1.0; extra == "dev"
+Requires-Dist: mypy>=1.0; extra == "dev"
+
+# RagParser
+
+Document parsing pipeline for RAG applications.
+
+## Installation
+
+```bash
+pip install -e .
+```
+
+## Development
+
+```bash
+pip install -e .[dev]
+pytest
+ruff check .
+mypy src
+```
+
+## CLI Usage
+
+```bash
+ragparser parse path/to/document.pdf --output output.json
+```
