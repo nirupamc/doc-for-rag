@@ -5,6 +5,7 @@ from ragparser.ir import Document, ExtractionMethod, ExtractionStatus
 from ragparser.backends.native import DocumentLoader, NativeExtractor
 from ragparser.backends.ocr import TesseractOCRBackend
 from ragparser.analysis import PageAnalyzer, ExtractionRouter, ExtractionStrategy
+from ragparser.layout import LayoutAnalyzer
 
 
 class DocumentParser:
@@ -20,6 +21,7 @@ class DocumentParser:
         self._router = ExtractionRouter()
         self._native_extractor = NativeExtractor()
         self._ocr_backend = TesseractOCRBackend()
+        self._layout_analyzer = LayoutAnalyzer()
 
     def parse(self, path: str | Path) -> Document:
         """
@@ -57,6 +59,17 @@ class DocumentParser:
 
                 # Extract based on strategy
                 ir_page = self._extract_page(page, page_number, strategy, analysis)
+
+                # Layout analysis after extraction
+                layout_result = self._layout_analyzer.analyze_page(ir_page)
+
+                # Update reading_order on blocks
+                for new_order, block_idx in enumerate(layout_result.resolved_order):
+                    ir_page.blocks[block_idx].reading_order = new_order
+
+                # Store layout info on page (provisional)
+                ir_page.layout_mode = layout_result.layout_mode
+                ir_page.layout_reason = layout_result.reason
 
                 doc.pages.append(ir_page)
 
@@ -137,4 +150,30 @@ class DocumentParser:
             for page_number, page in loader.iter_pages():
                 analysis = self._analyzer.analyze_page(page, page_number)
                 results.append(analysis)
+        return results
+
+    def analyze_with_layout(self, path: str | Path) -> list:
+        """
+        Analyze document pages with layout analysis but without full parsing.
+
+        Returns list of (ClassificationResult, LayoutResult) for each page.
+        Useful for CLI inspection showing before/after ordering.
+        """
+        path = Path(path)
+        if not path.exists():
+            raise FileNotFoundError(f"Document not found: {path}")
+
+        results = []
+        with DocumentLoader(str(path)) as loader:
+            for page_number, page in loader.iter_pages():
+                analysis = self._analyzer.analyze_page(page, page_number)
+
+                # Extract to get blocks for layout analysis
+                strategy = self._router.route(analysis)
+                ir_page = self._extract_page(page, page_number, strategy, analysis)
+
+                # Layout analysis
+                layout_result = self._layout_analyzer.analyze_page(ir_page)
+
+                results.append((analysis, layout_result))
         return results

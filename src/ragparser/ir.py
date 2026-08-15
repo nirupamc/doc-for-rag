@@ -47,6 +47,13 @@ class ExtractionStatus(Enum):
     FAILED = "failed"
 
 
+class LayoutMode(Enum):
+    """Detected geometric layout mode for a page."""
+    SINGLE_COLUMN = "single_column"
+    TWO_COLUMN = "two_column"
+    UNCERTAIN = "uncertain"
+
+
 @dataclass(slots=True)
 class BoundingBox:
     """
@@ -158,6 +165,8 @@ class Page:
         classification_reason: human-readable classification explanation (provisional M2)
         extraction_status: result of extraction execution (M3)
         extraction_method: actual extraction method used (M3)
+        layout_mode: detected geometric layout mode (provisional M4)
+        layout_reason: human-readable layout explanation (provisional M4)
         warnings: non-fatal diagnostics from extraction
     """
     number: int
@@ -169,6 +178,8 @@ class Page:
     classification_reason: Optional[str] = None
     extraction_status: Optional[ExtractionStatus] = None
     extraction_method: Optional[ExtractionMethod] = None
+    layout_mode: Optional[LayoutMode] = None
+    layout_reason: Optional[str] = None
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -182,6 +193,8 @@ class Page:
             "classification_reason": self.classification_reason,
             "extraction_status": self.extraction_status.value if self.extraction_status else None,
             "extraction_method": self.extraction_method.value if self.extraction_method else None,
+            "layout_mode": self.layout_mode.value if self.layout_mode else None,
+            "layout_reason": self.layout_reason,
             "warnings": self.warnings,
         }
 
@@ -196,6 +209,9 @@ class Page:
         extraction_method = None
         if data.get("extraction_method"):
             extraction_method = ExtractionMethod(data["extraction_method"])
+        layout_mode = None
+        if data.get("layout_mode"):
+            layout_mode = LayoutMode(data["layout_mode"])
         return cls(
             number=data["number"],
             width=data["width"],
@@ -206,6 +222,8 @@ class Page:
             classification_reason=data.get("classification_reason"),
             extraction_status=extraction_status,
             extraction_method=extraction_method,
+            layout_mode=layout_mode,
+            layout_reason=data.get("layout_reason"),
             warnings=data.get("warnings", []),
         )
 

@@ -68,7 +68,7 @@ def info(
     analyze: bool = typer.Option(
         True,
         "--analyze/--no-analyze",
-        help="Show per-page analysis (classification, signals)",
+        help="Show per-page analysis (classification, signals, layout)",
     ),
 ) -> None:
     """
@@ -78,7 +78,7 @@ def info(
 
     try:
         if analyze:
-            analyses = parser.analyze(input_path)
+            analyses = parser.analyze_with_layout(input_path)
             doc = parser.parse(input_path)
         else:
             doc = parser.parse(input_path)
@@ -101,7 +101,7 @@ def info(
         text_chars = sum(len(b.text) for b in page.blocks)
 
         if analyze and i < len(analyses):
-            a = analyses[i]
+            a, layout = analyses[i]
             s = a.signals
             typer.echo(f"  Page {page.number}:")
             typer.echo(f"    Classification: {a.classification.value.upper()}")
@@ -109,6 +109,9 @@ def info(
                 typer.echo(f"    Extraction method: {page.extraction_method.value.upper()}")
             if page.extraction_status:
                 typer.echo(f"    Extraction status: {page.extraction_status.value.upper()}")
+            if page.layout_mode:
+                typer.echo(f"    Layout mode: {page.layout_mode.value.upper()}")
+                typer.echo(f"    Layout reason: {page.layout_reason}")
             typer.echo(f"    Reason: {a.reason}")
             typer.echo(f"    Native chars: {s.native_char_count}")
             typer.echo(f"    Native blocks: {s.native_block_count}")
@@ -118,6 +121,9 @@ def info(
                 typer.echo(f"    Summed image area ratio: {s.summed_image_area_ratio:.1%}")
             if s.drawing_count > 0:
                 typer.echo(f"    Drawings: {s.drawing_count}")
+            if layout:
+                typer.echo(f"    Raw extraction order: {layout.input_order}")
+                typer.echo(f"    Resolved reading order: {layout.resolved_order}")
             if page.warnings:
                 typer.echo(f"    Warnings: {page.warnings}")
         else:

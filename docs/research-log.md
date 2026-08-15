@@ -300,3 +300,164 @@ Page 5: Classification: SUSPICIOUS, Extraction method: NATIVE, Extraction status
 ```
 
 The distinction matters: classification is the *decision*, extraction_method is what *actually ran*.
+
+---
+
+## 2026-08-15: Milestone 4 — Layout Analysis + Reading Order
+
+### Decision: LayoutMode in IR, LayoutAnalyzer as Separate Stage
+
+**Context:** Reading order determination is a geometric concern separate from extraction.
+
+**Decision:** Add `LayoutMode` enum to canonical IR (`src/ragparser/ir.py`). Create separate `LayoutAnalyzer` module (`src/ragparser/layout/`) that takes extracted blocks (from any backend) and assigns reading order.
+
+**Architecture:**
+```
+NativeExtractor ──┐
+                  ├──→ Blocks with canonical bboxes
+OCRExtractor ─────┘
+                         ↓
+                   LayoutAnalyzer
+                         ↓
+              Blocks with reading_order
+```
+
+**Rationale:** 
+- Single layout algorithm for both native and OCR blocks (same canonical geometry)
+- Extraction backends don't need reading-order logic
+- Layout analysis is a pure geometric transformation (testable in isolation)
+
+---
+
+### Decision: LayoutMode Enum Values
+
+**Values:**
+- `SINGLE_COLUMN`: Normal vertical flow, top-to-bottom with row clustering
+- `TWO_COLUMN`: Two distinct vertical columns detected (experimental)
+- `UNCERTAIN`: Ambiguous geometry; conservative fallback used
+
+**No `FAILED` state** — layout analysis never fails; it always produces an order (fallback if needed).
+
+---
+
+### Decision: LayoutMode in IR, Not in Extraction
+
+**Decision:** `LayoutMode` and `layout_reason` stored on `Page` in IR. Detailed `LayoutSignals` and `LayoutResult` (with `input_order`, `resolved_order`) kept in layout layer for CLI/debug inspection.
+
+**Rationale:** Canonical IR stores the final resolved `reading_order` on each `Block`. Debugging state (raw vs resolved order) stays outside canonical IR, accessible via `DocumentParser.analyze_with_layout()` and CLI.
+
+---
+
+### Decision: Baseline Single-Column Algorithm
+
+**Algorithm:** Top-to-bottom with row clustering.
+1. Sort blocks by `y0` (top coordinate)
+2. Cluster into rows: blocks whose vertical spans overlap within `row_tolerance_pct` (default 2% of page height)
+3. Within each row, sort left-to-right by `x0`
+
+**Why not simple `(y0, x0)` sort?** Handles cases where blocks on same visual row have slightly different `y0` values due to font/baseline differences.
+
+**Threshold:** `row_tolerance_pct = 0.02` (2% of page height ≈ 16pt on Letter). Configurable, documented as experimental.
+
+---
+
+### Decision: Two-Column Detection (Experimental)
+
+**Detection criteria (all must pass):**
+1. ≥ 4 blocks total
+2. Clear horizontal gap between block centers: `max_gap / page_width ≥ column_gap_threshold_pct` (default 15%)
+3. Both columns have ≥ 2 blocks
+4. Both columns span ≥ `min_column_span_pct` of page height (default 30%)
+5. Columns vertically overlap ≥ `min_column_overlap_pct` (default 20%)
+
+**Full-width block handling:**
+- Blocks with `width ≥ full_width_threshold_pct` (default 70%) of page width are "full-width"
+- Full-width blocks classified as `FULL_WIDTH_TOP` or `FULL_WIDTH_BOTTOM` relative to column vertical center
+- If full-width block overlaps column vertical span → `UNCERTAIN` (no interleaving)
+
+**Ordering:** Full-width top → Left column (top-to-bottom) → Right column (top-to-bottom) → Full-width bottom
+
+**Thresholds are experimental hypotheses**, not established truths. All configurable:
+- `column_gap_threshold_pct = 0.15`
+- `min_column_span_pct = 0.30`
+- `min_column_overlap_pct = 0.20`
+- `full_width_threshold_pct = 0.70`
+
+**Test results:** Properly constructed two-column pages detected correctly. Pages with centered-but-narrow headers/footers fall back to `SINGLE_COLUMN` or `UNCERTAIN` (conservative).
+
+---
+
+### Decision: Non-Fatal Geometry Validation
+
+**Principle:** Layout analysis never crashes on invalid geometry.
+
+**Validation in `LayoutAnalyzer._collect_and_validate_signals()`:**
+- Non-finite coordinates (NaN, inf)
+- `x1 < x0` or `y1 < y0` (prevented by `BoundingBox` but defensive)
+- Zero/negative size
+- Extreme out-of-page coordinates (> page bounds + 100pt)
+
+**Behavior:** Invalid blocks produce warnings on `Page.warnings`, excluded from geometry-dependent ordering, appended at end of resolved order. Valid blocks ordered normally.
+
+**Never:** Silent clamping, silent dropping, exceptions.
+
+---
+
+### Decision: Native/OCR Geometry Equivalence — Verified
+
+**Test:** Constructed identical geometric blocks with `ExtractionMethod.NATIVE` vs `ExtractionMethod.OCR` → identical reading order.
+
+**Finding:** Once converted to canonical coordinates (PDF points, top-left origin), both backends produce geometrically comparable coarse blocks suitable for shared layout analysis.
+
+**Caveat:** OCR blocks from Tesseract's `block_num` hierarchy may have different granularity than PyMuPDF's text blocks. The shared analyzer treats both as opaque geometric rectangles — no backend-specific logic.
+
+---
+
+### Decision: Conservative Two-Column Detection — Conservative by Design
+
+**False positive avoidance:** Rather than force two-column classification on ambiguous pages, the analyzer prefers `SINGLE_COLUMN` or `UNCERTAIN`.
+
+**Tested scenarios that correctly fall back:**
+- Header/footer centered but not truly full-width (< 70% width)
+- Columns with insufficient vertical span (< 30% page height)
+- Columns with insufficient vertical overlap (< 20% page height)
+- Pages with < 4 blocks
+
+**Result:** Conservative behavior avoids misordering; `UNCERTAIN` falls back to simple y-then-x sort.
+
+---
+
+### Experiment: Two-Column Layout Test Fixtures
+
+**Proper two-column page:** Header (full-width) → Left column (8 paragraphs) → Right column (8 paragraphs) → Footer (full-width). Both columns span ~90% page height. Detected as `TWO_COLUMN` with correct ordering: Header → Left 1-8 → Right 1-8 → Footer.
+
+**Naive two-column page:** Header/footer centered but narrow (< 70% width), columns only in middle portion. Falls back to `SINGLE_COLUMN` (conservative).
+
+**Key insight:** Real-world two-column detection requires both columns to span substantial vertical range AND clear horizontal separation. Many real PDFs with "two columns" only have columns in the middle (with full-width header/footer), which the conservative detector correctly treats as single-column with full-width header/footer.
+
+---
+
+### CLI Inspection: Before/After Reading Order
+
+```
+$ ragparser info two_column_proper.pdf
+Page 1:
+  Classification: NATIVE
+  Extraction method: NATIVE
+  Extraction status: SUCCESS
+  Layout mode: TWO_COLUMN
+  Layout reason: Two columns detected; full-width top, then left column, then right column, then full-width bottom.
+  Raw extraction order: [0, 1, 2, ... 45]
+  Resolved reading order: [0, 1, 2, ... 22, 23, ... 44, 45]
+```
+
+The distinction between `input_order` (extraction order) and `resolved_order` (layout-resolved) is now visible in CLI. This was a key M4 requirement — debugging state stays outside canonical IR but is accessible via `DocumentParser.analyze_with_layout()` and CLI.
+
+---
+
+### Test Coverage
+
+- 22 geometric unit tests (baseline, two-column, edge cases, native/OCR equivalence)
+- All M1-M3 tests continue passing (121 total, 93% coverage)
+- Integration tests for two-column PDF fixture
+- Invalid geometry handling verified (warnings generated, fallback ordering works)
