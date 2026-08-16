@@ -3,6 +3,7 @@
 from ragparser.ir import (
     Block,
     BlockType,
+    BlockRole,
     BoundingBox,
     Document,
     ExtractionMethod,
@@ -16,6 +17,7 @@ from ragparser.parser import DocumentParser
 __all__ = [
     "Block",
     "BlockType",
+    "BlockRole",
     "BoundingBox",
     "Document",
     "ExtractionMethod",

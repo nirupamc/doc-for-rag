@@ -134,5 +134,144 @@ def info(
                 typer.echo(f"    Extraction status: {page.extraction_status.value.upper()}")
 
 
+import json
+from pathlib import Path
+import typer
+from ragparser.parser import DocumentParser
+from ragparser.diagnostics import analyze_document, ExtractionReport, ReportStatus
+
+
+@app.command()
+def report(
+    input_path: Path = typer.Argument(
+        ...,
+        exists=True,
+        readable=True,
+        help="Path to input PDF document",
+    ),
+    output: Path | None = typer.Option(
+        None,
+        "-o",
+        "--output",
+        help="Output file path (default: stdout)",
+    ),
+    pretty: bool = typer.Option(
+        False,
+        "--pretty",
+        help="Pretty-print JSON report",
+    ),
+) -> None:
+    """
+    Generate an extraction diagnostics report for a parsed PDF document.
+
+    Reports extraction counts, layout summary, structure summary,
+    OCR diagnostics, warning aggregation, overall status with reasons,
+    and problem-page listing.
+    """
+    parser = DocumentParser()
+
+    try:
+        doc = parser.parse(input_path)
+    except FileNotFoundError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1)
+
+    report = analyze_document(doc)
+
+    # Decide output format
+    if output:
+        if pretty:
+            json_str = json.dumps(report.to_dict(), indent=2, ensure_ascii=False)
+        else:
+            json_str = json.dumps(report.to_dict(), ensure_ascii=False)
+        output.write_text(json_str, encoding="utf-8")
+        typer.echo(f"Written to {output}")
+    else:
+        _print_report_text(report)
+
+
+def _print_report_text(report: ExtractionReport) -> None:
+    """Print a human-readable extraction report to typer output."""
+
+    lines: list[str] = []
+
+    # Document header
+    lines.append("RagParser Extraction Report")
+    lines.append(f"Document: {report.source_path}")
+    lines.append(f"Pages: {report.page_count}")
+    lines.append("")
+
+    # Extraction section
+    lines.append("Extraction:")
+    lines.append(f"  Native:      {report.classification_counts.get('native', 0)}")
+    lines.append(f"  OCR:           {report.classification_counts.get('ocr_required', 0)}")
+    lines.append(f"  Empty:         {report.classification_counts.get('empty', 0)}")
+    lines.append(f"  Suspicious:    {report.classification_counts.get('suspicious', 0)}")
+    lines.append("")
+
+    # Extraction method counts
+    lines.append("  (extraction method counts)")
+    lines.append(f"  Native blocks: {report.extraction_method_counts.get('native', 0)}")
+    lines.append(f"  OCR blocks:      {report.extraction_method_counts.get('ocr', 0)}")
+    lines.append("")
+
+    # Extraction status counts
+    lines.append("  (extraction status counts)")
+    lines.append(f"  Success: {report.extraction_status_counts.get('success', 0)}")
+    lines.append(f"  Failed:  {report.extraction_status_counts.get('failed', 0)}")
+    lines.append("")
+
+    # Layout section
+    lines.append("Layout:")
+    lines.append(f"  Single:      {report.layout_mode_counts.get('single_column', 0)}")
+    lines.append(f"  Two-column:    {report.layout_mode_counts.get('two_column', 0)}")
+    lines.append(f"  Uncertain:     {report.layout_mode_counts.get('uncertain', 0)}")
+    lines.append("")
+
+    # Structure section
+    lines.append("Structure:")
+    lines.append(f"  Headings:     {report.block_role_counts.get('heading', 0)}")
+    lines.append(f"  Paragraphs:   {report.block_role_counts.get('paragraph', 0)}")
+    lines.append(f"  Headers:      {report.block_role_counts.get('header', 0)}")
+    lines.append(f"  Footers:      {report.block_role_counts.get('footer', 0)}")
+    lines.append(f"  Page numbers: {report.block_role_counts.get('page_number', 0)}")
+    lines.append(f"  Unknown:       {report.block_role_counts.get('unknown', 0)}")
+    lines.append("")
+
+    # OCR diagnostics section
+    lines.append("OCR:")
+    lines.append(f"  OCR block count:    {report.ocr_block_count}")
+    lines.append(f"  Blocks with confidence: {report.blocks_with_confidence}")
+    if report.median_ocr_confidence is not None:
+        lines.append(f"  Median confidence:  {report.median_ocr_confidence:.2f}")
+    if report.min_ocr_confidence is not None:
+        lines.append(f"  Minimum confidence: {report.min_ocr_confidence:.2f}")
+    lines.append(f"  Low-confidence blocks: {report.low_confidence_block_count}")
+    if report.pages_with_low_confidence:
+        lines.append(f"  Pages with low confidence: {', '.join(str(p) for p in report.pages_with_low_confidence)}")
+    lines.append("")
+
+    # Status section
+    lines.append(f"Status: {report.status.value.upper()}")
+    if report.status_reasons:
+        lines.append("Reasons:")
+        for reason in report.status_reasons:
+            lines.append(f"  - {reason.message}")
+    else:
+        lines.append("Reasons: none")
+
+    # Problem pages
+    if report.problem_pages:
+        lines.append(f"Problem pages: {', '.join(str(p) for p in report.problem_pages)}")
+    else:
+        lines.append("Problem pages: none")
+
+    for line in lines:
+        typer.echo(line)
+
+
 if __name__ == "__main__":
     app()

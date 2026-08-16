@@ -1,0 +1,141 @@
+C:\Python\Lib\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.................................FFFFFFFF............................... [ 50%]
+...........................................ss........................... [100%]
+================================== FAILURES ===================================
+________________ TestCLIAnalysis.test_cli_info_shows_analysis _________________
+
+self = <tests.test_analysis.TestCLIAnalysis object at 0x0000022F07C40790>
+mixed_document_pdf = WindowsPath('tests/fixtures/mixed_document.pdf')
+
+    def test_cli_info_shows_analysis(self, mixed_document_pdf):
+        import subprocess
+        import sys
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "info", str(mixed_document_pdf)],
+            capture_output=True,
+            text=True,
+        )
+>       assert result.returncode == 0
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'info', 'tests\\fixtures\\mixed_document.pdf']...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_analysis.py:391: AssertionError
+____________________________ test_cli_parse_simple ____________________________
+
+simple_pdf = WindowsPath('tests/fixtures/simple.pdf')
+
+    def test_cli_parse_simple(simple_pdf):
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "parse", str(simple_pdf)],
+            capture_output=True,
+            text=True,
+        )
+>       assert result.returncode == 0
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'parse', 'tests\\fixtures\\simple.pdf'], retur...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_cli.py:15: AssertionError
+__________________________ test_cli_parse_two_pages ___________________________
+
+two_page_pdf = WindowsPath('tests/fixtures/two_pages.pdf')
+
+    def test_cli_parse_two_pages(two_page_pdf):
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "parse", str(two_page_pdf)],
+            capture_output=True,
+            text=True,
+        )
+>       assert result.returncode == 0
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'parse', 'tests\\fixtures\\two_pages.pdf'], re...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_cli.py:28: AssertionError
+_________________________ test_cli_parse_output_file __________________________
+
+simple_pdf = WindowsPath('tests/fixtures/simple.pdf')
+tmp_path = WindowsPath('C:/Users/user/AppData/Local/Temp/pytest-of-user/pytest-42/test_cli_parse_output_file0')
+
+    def test_cli_parse_output_file(simple_pdf, tmp_path):
+        output_file = tmp_path / "output.json"
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "parse", str(simple_pdf), "-o", str(output_file)],
+            capture_output=True,
+            text=True,
+        )
+>       assert result.returncode == 0
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'parse', 'tests\\fixtures\\simple.pdf', '-o', ...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_cli.py:41: AssertionError
+____________________________ test_cli_parse_pretty ____________________________
+
+simple_pdf = WindowsPath('tests/fixtures/simple.pdf')
+
+    def test_cli_parse_pretty(simple_pdf):
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "parse", str(simple_pdf), "--pretty"],
+            capture_output=True,
+            text=True,
+        )
+>       assert result.returncode == 0
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'parse', 'tests\\fixtures\\simple.pdf', '--pre...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_cli.py:53: AssertionError
+_________________________ test_cli_parse_invalid_file _________________________
+
+    def test_cli_parse_invalid_file():
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "parse", "nonexistent.pdf"],
+            capture_output=True,
+            text=True,
+        )
+        # Typer returns 2 for invalid argument errors
+>       assert result.returncode == 2
+E       assert 1 == 2
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'parse', 'nonexistent.pdf'], returncode=1, std...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_cli.py:66: AssertionError
+________________________________ test_cli_info ________________________________
+
+simple_pdf = WindowsPath('tests/fixtures/simple.pdf')
+
+    def test_cli_info(simple_pdf):
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "info", str(simple_pdf)],
+            capture_output=True,
+            text=True,
+        )
+>       assert result.returncode == 0
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'info', 'tests\\fixtures\\simple.pdf'], return...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_cli.py:76: AssertionError
+___________________________ test_cli_info_two_pages ___________________________
+
+two_page_pdf = WindowsPath('tests/fixtures/two_pages.pdf')
+
+    def test_cli_info_two_pages(two_page_pdf):
+        result = subprocess.run(
+            [sys.executable, "-m", "ragparser.cli", "info", str(two_page_pdf)],
+            capture_output=True,
+            text=True,
+        )
+>       assert result.returncode == 0
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['C:\\Python\\python.exe', '-m', 'ragparser.cli', 'info', 'tests\\fixtures\\two_pages.pdf'], ret...olo projectzzz\\doc for rag\\src\\ragparser\\cli.py", line 294\n    <tool_call>\n    ^\nSyntaxError: invalid syntax\n').returncode
+
+tests\test_cli.py:87: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_analysis.py::TestCLIAnalysis::test_cli_info_shows_analysis
+FAILED tests/test_cli.py::test_cli_parse_simple - assert 1 == 0
+FAILED tests/test_cli.py::test_cli_parse_two_pages - assert 1 == 0
+FAILED tests/test_cli.py::test_cli_parse_output_file - assert 1 == 0
+FAILED tests/test_cli.py::test_cli_parse_pretty - assert 1 == 0
+FAILED tests/test_cli.py::test_cli_parse_invalid_file - assert 1 == 2
+FAILED tests/test_cli.py::test_cli_info - assert 1 == 0
+FAILED tests/test_cli.py::test_cli_info_two_pages - assert 1 == 0
+8 failed, 134 passed, 2 skipped in 24.37s

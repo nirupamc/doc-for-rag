@@ -54,6 +54,16 @@ class LayoutMode(Enum):
     UNCERTAIN = "uncertain"
 
 
+class BlockRole(Enum):
+    """Semantic role of a content block."""
+    PARAGRAPH = "paragraph"
+    HEADING = "heading"
+    HEADER = "header"
+    FOOTER = "footer"
+    PAGE_NUMBER = "page_number"
+    UNKNOWN = "unknown"
+
+
 @dataclass(slots=True)
 class BoundingBox:
     """
@@ -116,6 +126,11 @@ class Block:
         - extraction_method: how this block was extracted
         - bbox: position in canonical coordinates
         - reading_order: sequential order on page (0 = unknown/not set)
+    Structure fields (M5):
+        - role: semantic role of the block
+        - font_name: font family name (native extraction only)
+        - font_size: font size in points (native extraction only)
+        - is_bold: whether text is predominantly bold (native extraction only)
     """
     type: BlockType = BlockType.TEXT
     text: str = ""
@@ -124,6 +139,10 @@ class Block:
     confidence: Optional[float] = None
     page_number: int = 0
     reading_order: int = 0
+    role: BlockRole = BlockRole.UNKNOWN
+    font_name: Optional[str] = None
+    font_size: Optional[float] = None
+    is_bold: Optional[bool] = None
 
     def to_dict(self) -> dict:
         return {
@@ -134,6 +153,10 @@ class Block:
             "confidence": self.confidence,
             "page_number": self.page_number,
             "reading_order": self.reading_order,
+            "role": self.role.value,
+            "font_name": self.font_name,
+            "font_size": self.font_size,
+            "is_bold": self.is_bold,
         }
 
     @classmethod
@@ -147,6 +170,10 @@ class Block:
             confidence=data.get("confidence"),
             page_number=data["page_number"],
             reading_order=data.get("reading_order", 0),
+            role=BlockRole(data.get("role", "unknown")),
+            font_name=data.get("font_name"),
+            font_size=data.get("font_size"),
+            is_bold=data.get("is_bold"),
         )
 
 

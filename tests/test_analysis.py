@@ -330,15 +330,22 @@ class TestDocumentParserIntegration:
         assert len(doc.pages[0].blocks) == 0
 
     def test_parse_scanned_page_ocr_failed(self, scanned_page_pdf):
+        """Scanned page where OCR executes but recovers no usable text.
+
+        Per approved OCR semantics: Tesseract executes successfully but
+        recovers zero usable text → ExtractionStatus.SUCCESS, blocks=[],
+        warning explaining no usable text recovered.
+        """
         parser = DocumentParser()
         doc = parser.parse(scanned_page_pdf)
         assert doc.page_count == 1
         assert doc.pages[0].classification == IRPageClassification.OCR_REQUIRED
         assert doc.pages[0].extraction_method == ExtractionMethod.OCR
-        assert doc.pages[0].extraction_status == ExtractionStatus.FAILED
+        # Per approved semantics: SUCCESS when execution succeeds, even if
+        # zero text recovered. FAILED only for exceptions/unavailability.
+        assert doc.pages[0].extraction_status == ExtractionStatus.SUCCESS
         assert len(doc.pages[0].blocks) == 0
-        assert "OCR failed" in doc.pages[0].warnings[0]
-        assert "Tesseract not available" in doc.pages[0].warnings[0]
+        assert "recovered no usable text" in doc.pages[0].warnings[0]
 
     def test_parse_mixed_page(self, mixed_page_pdf):
         parser = DocumentParser()

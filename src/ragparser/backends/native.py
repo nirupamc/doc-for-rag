@@ -1,6 +1,8 @@
 """Native PDF extraction backend using PyMuPDF."""
 
 import fitz
+from statistics import median
+from collections import Counter
 from ragparser.ir import (
     Block,
     BlockType,
@@ -113,12 +115,29 @@ class NativeExtractor:
             block_text = ""
             block_bbox = None
 
-            # Aggregate text from lines/spans
+            # Aggregate text and font metadata from all spans in the block
+            font_sizes = []
+            font_names = []
+            bold_counts = 0
+            total_spans = 0
+
             for line in block_dict.get("lines", []):
                 for span in line.get("spans", []):
                     block_text += span["text"]
-                if block_text and not block_text.endswith("\n"):
-                    block_text += "\n"
+                    if block_text and not block_text.endswith("\n"):
+                        block_text += "\n"
+
+                    # Aggregate font metadata from all spans
+                    size = span.get("size")
+                    if size:
+                        font_sizes.append(size)
+                    name = span.get("font")
+                    if name:
+                        font_names.append(name)
+                    flags = span.get("flags", 0)
+                    if flags & 2:  # PyMuPDF bold flag
+                        bold_counts += 1
+                    total_spans += 1
 
             block_text = block_text.rstrip("\n")
 
@@ -135,6 +154,11 @@ class NativeExtractor:
                 y1=bbox[3],
             )
 
+            # Aggregate font metadata: median size, majority bold, most common font name
+            font_size = median(font_sizes) if font_sizes else None
+            font_name = Counter(font_names).most_common(1)[0][0] if font_names else None
+            is_bold = (bold_counts / total_spans > 0.5) if total_spans > 0 else None
+
             block = Block(
                 type=BlockType.TEXT,
                 text=block_text,
@@ -142,6 +166,9 @@ class NativeExtractor:
                 extraction_method=self._method,
                 page_number=page_number,
                 reading_order=reading_order,
+                font_name=font_name,
+                font_size=font_size,
+                is_bold=is_bold,
             )
             blocks.append(block)
             reading_order += 1

@@ -454,10 +454,55 @@ Page 1:
 The distinction between `input_order` (extraction order) and `resolved_order` (layout-resolved) is now visible in CLI. This was a key M4 requirement — debugging state stays outside canonical IR but is accessible via `DocumentParser.analyze_with_layout()` and CLI.
 
 ---
+### M5 Recovery
 
-### Test Coverage
+**M5 Recovery Phase (2026-08-15)**
 
-- 22 geometric unit tests (baseline, two-column, edge cases, native/OCR equivalence)
-- All M1-M3 tests continue passing (121 total, 93% coverage)
-- Integration tests for two-column PDF fixture
-- Invalid geometry handling verified (warnings generated, fallback ordering works)
+Recovered from upstream 502 error that interrupted previous session. Key fixes applied:
+
+1. **Problem 1 -- Incorrect HeadingEvidence import**: `HeadingEvidence` was defined locally in `page_analyzer.py`, but interrupted code attempted `from ragparser.structure.signals import HeadingEvidence`. Removed the incorrect import; the local class is used directly.
+
+2. **Problem 2 -- Duplicate method**: `_estimate_body_font_size()` was defined twice inside `PageStructureAnalyzer`. Kept the implementation with docstring (lines 75-84) and removed the duplicate.
+
+3. **Problem 3 -- Enum/string inconsistency**: Mixed `BlockRole.UNKNOWN` with raw strings "unknown", "heading", "paragraph". Fixed all comparisons to use `BlockRole` enum consistently throughout.
+
+**Additional fix -- Isolation edge case**: `_compute_isolation()` returned `inf` when a single block existed (no other blocks to compute gap against), which incorrectly counted as a heading signal. Fixed by tracking whether any other blocks were found; if not, return `0.0`.
+
+**Tests added**: 21 new M5 tests in `tests/test_structure.py` covering `HeadingEvidence`, heading detection gates, body font size estimation, font aggregation, and enum/string consistency. All 142 tests pass (121 M1-M4 + 21 M5), 2 skipped.
+
+**Stability**: Full test suite runs successfully with no regressions in M1--M4 behavior.
+
+
+
+### M6 Diagnostics + Extraction Report
+
+**Design decisions for the ExtractionReport and DiagnosticsAnalyzer:**
+
+- **Data models** (`src/ragparser/diagnostics/models.py`): `ExtractionReport` dataclass with classification counts, extraction method counts, extraction status counts, layout mode counts, block role counts, OCR diagnostics (block count, confidence stats), warnings, overall status, status reasons, and problem pages. `to_dict()` serialization for JSON export.
+
+- **Status policy** (`src/ragparser/diagnostics/analyzer.py:_apply_policy`): Explicit GOOD/REVIEW/POOR thresholds:
+  - **POOR**: Failed extraction pages >= 10% of total pages
+  - **REVIEW**: Any SUSPICIOUS classification, any UNCERTAIN layout, any low-confidence OCR warning (only if not POOR)
+  - **GOOD**: None of the above
+  - POOR takes precedence over REVIEW (fixed in prototype 1 — review triggers only checked when POOR not triggered)
+
+- **Analyzer is read-only** (`src/ragparser/diagnostics/analyzer.py:analyze_document`): Does NOT modify the Document. All data derived from existing IR. Verified with `test_no_mutation_of_document`.
+
+- **CLI command** (`src/ragparser/cli.py:report`): `ragparser report` command that generates extraction diagnostics reports. Supports `--pretty` for JSON indentation and `-o/--output` for file export. Outputs human-readable text by default, JSON when `-o` specified.
+
+- **Problem pages**: Pages flagged by policy (all pages if POOR, specific pages with low OCR confidence if REVIEW/OCR trigger, none for EMPTY pages — absence of structure is NOT a problem).
+
+- **EMPTY pages**: Zero blocks are NOT problems; absence of structure is NOT a problem. EMPTY pages get GOOD status with empty problem_pages.
+
+**Tests** (`tests/test_diagnostics.py`): 25 M6 tests covering:
+- Report creation and `to_dict()` serialization
+- Status determination (GOOD/REVIEW/POOR) with correct policy thresholds
+- OCR confidence metrics (block count, median/min confidence, low-confidence detection)
+- Problem pages identification
+- CLI `ragparser report` command (JSON export, pretty print, nonexistent file handling)
+- Empty page, scanned page, sparse page, no-structure page handling
+- Status reason serialization
+
+**Key code changes:**
+1. `src/ragparser/diagnostics/analyzer.py:_apply_policy` — Fixed POOR/REVIEW priority: review triggers only checked when POOR condition not met; `_apply_policy` now populates `status_reasons` with all triggers
+2. `tests/test_diagnostics.py` — New test file with 25 M6 diagnostics tests

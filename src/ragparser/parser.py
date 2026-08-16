@@ -71,6 +71,10 @@ class DocumentParser:
                 ir_page.layout_mode = layout_result.layout_mode
                 ir_page.layout_reason = layout_result.reason
 
+                # Structure analysis (page-level then document-level)
+                from ragparser.structure.coordinator import run_structure_analysis
+                run_structure_analysis(doc.pages)
+
                 doc.pages.append(ir_page)
 
             return doc
