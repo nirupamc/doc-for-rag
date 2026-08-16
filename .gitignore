@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.pyright/
+
+# Test/debug output
+*_output.txt
+test_results*.txt
+test_summary.txt
+final_test_summary.txt
+results.txt
+
+# Next.js
+frontend/node_modules/
+frontend/.next/
+.next/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
