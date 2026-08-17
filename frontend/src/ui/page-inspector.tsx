@@ -1,139 +1,55 @@
-/* PageInspector — Detailed view of a single selected page.
-
- * Shows structured page information:
- *   - page number
- *   - classification
- *   - classification reason
- *   - extraction method
- *   - extraction status
- *   - layout mode
- *   - warnings
- *   - blocks ordered by reading_order
- *
- * For each block shows:
- *   - role
- *   - text (truncated)
- *   - extraction method
- *   - confidence (if OCR)
- *   - bbox in collapsible details
- */
-
 "use client"
 
-import { useState } from "react"
+import type { PageData } from "@/lib/api"
 
-export interface PageInspectorProps {
-  page: {
-    number: number
-    classification: string
-    classification_reason: string
-    extraction_method: string
-    extraction_status: string
-    layout_mode: string
-    layout_reason: string
-    warnings: string[]
-    blocks: {
-      type: string
-      text: string
-      bbox: { x0: number; y0: number; x1: number; y1: number }
-      extraction_method: string
-      confidence?: number | null
-      reading_order: number
-      role: string
-    }[]
-  }
-  onReanalyse?: () => void
+interface PageInspectorProps {
+  page: PageData
+  highlightedBlock: number | null
+  selectedBlock: number | null
+  onBlockHover: (readingOrder: number | null) => void
+  onBlockSelect: (readingOrder: number | null) => void
+  showBboxes: boolean
 }
 
-export function PageInspector({ page, onReanalyse }: PageInspectorProps) {
-  const [showBboxes, setShowBboxes] = useState(false)
-
-  const truncated = (text: string, len = 60) =>
-    text.length > len ? `${text.slice(0, len)}…` : text
-
+export function PageInspector({ page, highlightedBlock, selectedBlock, onBlockHover, onBlockSelect, showBboxes }: PageInspectorProps) {
   return (
-    <div className="p-5 rounded-lg border-border">
-      <h3 className="font-semibold mb-3">Page {page.number}</h3>
-
-      <div className="grid grid-cols-2 gap-3 mb-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Classification</p>
-          <p className="font-medium">{page.classification.toUpperCase()}</p>
-          <p className="text-xs text-muted-foreground">{page.classification_reason}</p>
-        </div>
-        <div>
-          <p className="text-sm text-muted-foreground">Extraction</p>
-          <p className="font-medium">
-            {page.extraction_method.toUpperCase()}
-            {" "}
-            {page.extraction_status.toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">{page.layout_mode.toUpperCase()}</p>
-        </div>
+    <section className="h-full border-l border-[var(--phosphor-dim)]">
+      <header className="border-b border-[var(--phosphor-dim)] px-3 py-2">
+        <p className="tech-label">Structured inspection</p>
+        <h3 className="tech-heading mt-2 text-xl">Page // {String(page.number).padStart(3, "0")}</h3>
+      </header>
+      <dl className="grid grid-cols-2 gap-px bg-[var(--phosphor-very-dim)] font-terminal text-base uppercase">
+        <Meta label="Classification" value={page.classification} />
+        <Meta label="Extraction" value={`${page.extraction_method} / ${page.extraction_status}`} />
+        <div className="col-span-2 bg-[var(--crt-panel)] px-3 py-2"><dt className="tech-label">Layout model</dt><dd className="mt-1 text-[var(--phosphor)]">{page.layout_mode.replace("_", " ")} // {page.layout_reason}</dd></div>
+      </dl>
+      {page.warnings.length > 0 && <ul className="border-b border-[var(--amber)] bg-[var(--warning-bg)] p-3 font-terminal text-base text-[var(--amber)]">{page.warnings.map((warning) => <li key={warning}>WARN // {warning}</li>)}</ul>}
+      <div className="flex items-center justify-between border-b border-[var(--phosphor-dim)] px-3 py-2"><h4 className="tech-label">Block register</h4><span className="font-display text-2xl">{String(page.blocks.length).padStart(3, "0")}</span></div>
+      <div className="max-h-[680px] overflow-auto">
+        {page.blocks.map((block) => {
+          const highlighted = highlightedBlock === block.reading_order
+          const selected = selectedBlock === block.reading_order
+          const confidence = block.confidence == null ? "—" : `${(block.confidence * 100).toFixed(0)}%`
+          return (
+            <button type="button" key={`${page.number}:${block.reading_order}`}
+              className={`w-full border-b px-3 py-2 text-left transition-colors ${selected ? "border-[var(--text-strong)] bg-[var(--selected-bg)] shadow-[inset_3px_0_0_var(--text)]" : highlighted ? "border-[var(--text)] bg-[var(--hover-bg)]" : "border-[var(--border-subtle)] hover:bg-[var(--hover-bg)]"}`}
+              onMouseEnter={() => onBlockHover(block.reading_order)} onMouseLeave={() => onBlockHover(null)} onClick={() => onBlockSelect(selected ? null : block.reading_order)}>
+              <span className="font-interface flex items-center justify-between text-[9px] font-semibold uppercase tracking-[.1em]"><strong>Block::{String(page.number).padStart(3, "0")}.{String(block.reading_order + 1).padStart(2, "0")}</strong><span className={selected ? "text-[var(--phosphor-bright)]" : "text-[var(--phosphor-dim)]"}>{selected ? "SELECTED" : "IDLE"}</span></span>
+              <span className="mt-2 grid grid-cols-[48px_1fr_38px_auto] gap-y-0 font-terminal text-base uppercase"><span className="text-[var(--phosphor-dim)]">Type</span><span>{block.role}</span><span className="text-[var(--phosphor-dim)]">Conf</span><span>{confidence}</span><span className="text-[var(--phosphor-dim)]">Src</span><span>{block.extraction_method}</span><span className="text-[var(--phosphor-dim)]">Order</span><span>{String(block.reading_order + 1).padStart(2, "0")}</span></span>
+              <span className="my-2 block border-t border-[var(--phosphor-very-dim)]" />
+              <span className="block font-terminal text-base leading-tight text-[var(--phosphor)]">{truncate(block.text, 120)}</span>
+              {showBboxes && <span className="mt-2 grid grid-cols-2 border-t border-[var(--phosphor-very-dim)] pt-1 font-terminal text-sm text-[var(--phosphor-dim)]"><span>X0 {block.bbox.x0.toFixed(1)} &nbsp; Y0 {block.bbox.y0.toFixed(1)}</span><span>X1 {block.bbox.x1.toFixed(1)} &nbsp; Y1 {block.bbox.y1.toFixed(1)}</span></span>}
+            </button>
+          )
+        })}
+        {page.blocks.length === 0 && <p className="tech-label p-4">No blocks extracted</p>}
       </div>
-
-      {page.warnings.length > 0 && (
-        <div className="mb-4 p-3 rounded rounded-border border-border">
-          <p className="text-sm text-warning">Warnings:</p>
-          <ul className="list-disc list-inside text-sm">
-            {page.warnings.map((w, i) => (
-              <li key={i}>{w}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {page.blocks.length > 0 && (
-        <div className="mt-4">
-          <p className="text-sm font-medium mb-2">Blocks ({page.blocks.length})</p>
-          <div className="space-y-2">
-            {page.blocks.map((block, i) => {
-              const confDisplay = block.confidence !== null
-                ? `${(block.confidence * 100).toFixed(0)}%`
-                : "N/A"
-
-              return (
-                <div
-                  key={i}
-                  className`
-                    p-3 rounded rounded-border border-border
-                    ${block.reading_order === 0 ? "opacity-60" : ""}
-                  `
-                >
-                  <div className="flex justify-between align-items-start">
-                    <div>
-                      <p className="font-medium">{block.role.toUpperCase()}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {truncated(block.text, 50)}
-                      </p>
-                    </div>
-                    <div className="text-right text-xs">
-                      <span>{block.reading_order + 1}</span>
-                      <span className="ml-1">/{page.blocks.length}</span>
-                      <span className="text-primary-500 cursor-pointer">
-                        {truncated(confDisplay, 4)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {showBboxes && (
-                    <div className="mt-1 text-caption text-muted-foreground">
-                      bbox:{" "}
-                      <span>{block.bbox.x0.toFixed(1)} , {block.bbox.y0.toFixed(1)}</span>
-                      <span>{block.bbox.x1.toFixed(1)} , {block.bbox.y1.toFixed(1)}</span>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {!page.blocks.length && (
-        <p className="text-sm text-muted-foreground mb-2">
-          No blocks extracted.
-        </p>
-      )}
-    </div>
+    </section>
   )
+}
+
+function Meta({ label, value }: { label: string; value: string }) {
+  return <div className="bg-[var(--crt-panel)] px-3 py-2"><dt className="tech-label">{label}</dt><dd className="mt-1 text-[var(--phosphor)]">{value.replaceAll("_", " ")}</dd></div>
+}
+
+function truncate(text: string, length: number) { return text.length > length ? `${text.slice(0, length)}…` : text }

@@ -1,173 +1,130 @@
-/*
- * UploadPanel — Restrained PDF upload experience.
- * 
- * Features:
- *   - Drag-and-drop area
- *   - File picker button
- *   - PDF-only validation
- *   - Size limit messaging (25 MB)
- *   - File info display after selection
- *   - Parse action (does not auto-upload)
- */
-
 "use client"
 
-import { useState } from "react"
-import { parseDocument } from "@/lib/api"
-import { LoadingState } from "@/ui/loading-state"
-import { ErrorState } from "@/ui/error-state"
+import { useRef, useState, type ChangeEvent, type DragEvent } from "react"
+import { parseDocument, type ParseResponse } from "@/lib/api"
 import { StatusBadge } from "@/ui/status-badge"
 
+type UploadState = "IDLE" | "UPLOADING" | "PROCESSING" | "SUCCESS" | "ERROR"
+
 export interface UploadPanelProps {
-  onParseSuccess: (response: {
-    document: { page_count: number; pages: any[] }
-    report: { status: string }
-  }) => void
-  onReset: () => void
+  onParseSuccess: (response: ParseResponse, file: File) => void
 }
 
-export function UploadPanel({ onParseSuccess, onReset }: UploadPanelProps) {
+const MAX_BYTES = 25 * 1024 * 1024
+
+export function UploadPanel({ onParseSuccess }: UploadPanelProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
-  const [fileName, setFileName] = useState<string | null>(null)
-  const [fileSize, setFileSize] = useState<string | null>(null)
-  const [isParsing, setIsParsing] = useState(false)
-  const [parseError, setParseError] = useState<string | null>(null)
+  const [state, setState] = useState<UploadState>("IDLE")
+  const [error, setError] = useState<string | null>(null)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0]
+  const selectFile = (selected?: File) => {
     if (!selected) return
-
-    // PDF-only check
-    if (!selected.name.toLowerCase().endsWith(".pdf")) {
-      setParseError("Unsupported file type: only PDF is accepted.")
+    if (selected.type !== "application/pdf" && !selected.name.toLowerCase().endsWith(".pdf")) {
       setFile(null)
+      setState("ERROR")
+      setError("Unsupported file type: only PDF is accepted.")
       return
     }
-
-    // Size check (25 MB development limit)
-    const maxBytes = 25 * 1024 * 1024
-    if (selected.size > maxBytes) {
-      setParseError(
-        `File too large: ${selected.size} bytes. Maximum ${maxBytes / (1024 * 1024)} MB.`
-      )
+    if (selected.size > MAX_BYTES) {
       setFile(null)
+      setState("ERROR")
+      setError("File too large. The local development limit is 25 MB.")
       return
     }
-
     setFile(selected)
-    setFileName(selected.name)
-    setFileSize(`${selected.size / 1024} KB`)
-    setParseError(null)
+    setState("IDLE")
+    setError(null)
+  }
+
+  const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
+    selectFile(event.target.files?.[0])
+  }
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    selectFile(event.dataTransfer.files[0])
   }
 
   const handleParse = async () => {
     if (!file) return
-
-    setIsParsing(true)
-    setParseError(null)
-
     const formData = new FormData()
     formData.append("file", file, file.name)
 
     try {
-      const response = await parseDocument(formData)
-      onParseSuccess({
-        document: response.document,
-        report: response.report,
-      })
-    } catch (err: any) {
-      setParseError(err.message || "Unexpected parsing failure")
-    } finally {
-      setIsParsing(false)
+      setError(null)
+      setState("UPLOADING")
+      const request = parseDocument(formData)
+      setState("PROCESSING")
+      const response = await request
+      setState("SUCCESS")
+      onParseSuccess(response, file)
+    } catch (caught: unknown) {
+      setState("ERROR")
+      setError(caught instanceof Error ? caught.message : "Unexpected parsing failure")
     }
   }
 
-  return (
-    <section className="max-w-2xl mx-auto">
-      <div className="border rounded-lg p-6 bg-card border-border">
-        <h2 className="text-xl font-semibold mb-4">RagParser</h2>
+  const clear = () => {
+    setFile(null)
+    setState("IDLE")
+    setError(null)
+    if (inputRef.current) inputRef.current.value = ""
+  }
 
-        {/* Drag-and-drop area */}
+  const busy = state === "UPLOADING" || state === "PROCESSING"
+
+  return (
+    <section className="mx-auto flex min-h-[calc(100vh-130px)] max-w-5xl items-center justify-center py-12">
+      <div className="relative w-full max-w-2xl border-y border-[var(--border)] bg-[var(--surface-raised)] px-6 py-10 md:px-12">
+        <span className="absolute left-0 top-0 h-4 w-4 border-l border-t border-[var(--phosphor)]" aria-hidden="true" />
+        <span className="absolute right-0 top-0 h-4 w-4 border-r border-t border-[var(--phosphor)]" aria-hidden="true" />
+        <p className="tech-label mb-5">Document intake // channel 01</p>
+        <h2 className="tech-heading mb-2 text-5xl">{busy ? "Document analysis" : "No document loaded"}</h2>
+        <p className="font-terminal mb-6 text-lg text-[var(--phosphor-dim)]">SYSTEM READY // AWAITING INPUT<span className="cursor-blink">_</span></p>
         <div
-          className="border-2 dashed border-border rounded-lg p-8 text-center cursor-pointer transition-colors hover:border-primary"
-          onClick={() => (document.getElementById("file-input") as HTMLInputElement).click()}
-          onDragOver={(e) => {
-            e.preventDefault()
-            ;(e.currentTarget as HTMLElement).style.borderColor = "var(--primary)"
-          }}
-          onDragLeave={(e) => {
-            e.preventDefault()
-            ;(e.currentTarget as HTMLElement).style.borderColor = "var(--border)"
+          className="group cursor-pointer border border-dashed border-[var(--phosphor-dim)] bg-[var(--crt-panel)] px-6 py-14 text-center transition-colors hover:border-[var(--phosphor)] hover:bg-[var(--phosphor-very-dim)]"
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={handleDrop}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") inputRef.current?.click()
           }}
         >
-          <p className="text-sm text-muted-foreground mb-2">
-            Drag a PDF here or {" "}
-            <button type="button" className="underline underline-offset-2">
-              browse
-            </button>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            PDF only · Max {25} MB
-          </p>
+          <p className="font-interface text-sm font-semibold uppercase tracking-[.12em] text-[var(--phosphor)]">[ Insert document ]</p>
+          <p className="tech-label mt-3">PDF / Max 25 MB</p>
+          <span className="tech-button mt-6 inline-block group-hover:border-[var(--phosphor-bright)]">Select file</span>
         </div>
+        <input ref={inputRef} type="file" accept="application/pdf,.pdf" onChange={handleInput} hidden />
 
-        {/* File input (hidden) */}
-        <input
-          id="file-input"
-          type="file"
-          accept=".pdf"
-          onChange={(e) => handleChange(e)}
-          style={{ display: "none" }}
-        />
-
-        {/* File info + parse button */}
         {file && (
-          <div className="mt-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
+          <div className="mt-5 space-y-4 border-t border-[var(--phosphor-very-dim)] pt-4">
+            <div className="flex items-center gap-3 font-terminal text-lg text-[var(--phosphor-bright)]">
               <StatusBadge status="good" size="sm" />
-              <span>
-                {fileName || "selected file"} ({fileSize || "?"})
-              </span>
+              <span className="text-sm">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
             </div>
-
-            <button
-              disabled={isParsing}
-              onClick={handleParse}
-              className="btn-primary"
-              aria-live="polite">
-                {isParsing ? (
-                  <LoadingState size="sm" className="mr-2" />
-                  Analyzing document...
-                ) : "Parse PDF"}
-              </button>
-
-              {/* Clear button */}
+            <div className="flex gap-2">
               <button
-                onClick={() => {
-                  setFile(null)
-                  setFileName(null)
-                  setFileSize(null)
-                  setParseError(null)
-                }
-                className="text-sm text-muted-foreground"
-                aria-label="Clear selection">
+                type="button"
+                disabled={busy}
+                onClick={handleParse}
+                className="tech-button tech-button-primary disabled:cursor-wait disabled:opacity-50"
+              >
+                {busy ? "Processing document…" : "Parse PDF"}
+              </button>
+              <button type="button" disabled={busy} onClick={clear} className="tech-button">
                 Remove
               </button>
             </div>
-
-            {/* Error state */}
-            {parseError && (
-              <ErrorState message={parseError} onRetry={() => {}} />
-            )}
           </div>
         )}
 
-        {/* Empty state */}
-        {!file && !isParsing && (
-          <p className="text-sm text-muted-foreground mb-4">
-            Select a PDF to begin inspection.
-          </p>
-        )}
+        <p className="tech-label mt-5" aria-live="polite">Intake state // {state}</p>
+        {busy && <div className="mt-3 border-l border-[var(--phosphor)] pl-3 font-terminal text-base text-[var(--phosphor-dim)]"><p>&gt; DOCUMENT RECEIVED</p><p>&gt; EXTRACTION ENGINE ACTIVE</p><p className="text-[var(--phosphor)]">&gt; BUILDING DOCUMENT MODEL<span className="cursor-blink">_</span></p></div>}
+        {error && <p className="mt-3 border-l-2 border-[var(--red)] bg-[var(--error-bg)] p-3 font-terminal text-base text-[var(--red)]">ERR:: {error}</p>}
+        {!file && !error && <p className="mt-3 font-terminal text-base uppercase text-[var(--phosphor-dim)]">&gt; Awaiting source document.</p>}
       </div>
     </section>
   )

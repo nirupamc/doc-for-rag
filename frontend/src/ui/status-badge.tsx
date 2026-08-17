@@ -7,8 +7,6 @@
 
 "use client"
 
-import { ReactNode } from "react"
-
 export interface StatusBadgeProps {
   status: "good" | "review" | "poor"
   size?: "sm" | "md"
@@ -22,23 +20,23 @@ export function StatusBadge({
 }: StatusBadgeProps) {
   const labels: Record<string, { className: string; title: string }> = {
     good: {
-      className: "bg-green-100 text-green-800",
+      className: "border-[var(--border)] bg-[var(--good-bg)] text-[var(--text-strong)]",
       title: "GOOD — No significant issues detected",
     },
     review: {
-      className: "bg-yellow-100 text-yellow-800",
+      className: "border-[var(--amber)] bg-[var(--warning-bg)] text-[var(--amber)]",
       title: "REVIEW — Document requires attention",
     },
     poor: {
-      className: "bg-red-100 text-red-800",
+      className: "border-[var(--red)] bg-[var(--error-bg)] text-[var(--red)]",
       title: "POOR — Significant extraction problems",
     },
   }
 
   const label = labels[status]
   const sizeClasses = size === "sm"
-    ? "h-6 w-6 text-xs px-2 rounded"
-    : "h-8 w-8 text-sm px-3 rounded"
+    ? "h-5 text-[9px] px-2"
+    : "h-7 text-[10px] px-3"
 
   if (asChild) {
     return <span className={label.className} title={label.title} />
@@ -46,7 +44,7 @@ export function StatusBadge({
 
   return (
     <span
-      className={`${sizeClasses} inline-flex items-center rounded`}
+      className={`${sizeClasses} ${label.className} font-interface inline-flex items-center justify-center border font-bold tracking-[.1em]`}
       title={label.title}
     >
       {status.toUpperCase()}

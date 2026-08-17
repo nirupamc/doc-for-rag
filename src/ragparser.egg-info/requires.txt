@@ -2,6 +2,9 @@ pymupdf>=1.23.0
 typer>=0.9.0
 pytesseract>=0.3.10
 pillow>=10.0.0
+fastapi>=0.100.0
+python-multipart>=0.0.5
+uvicorn[standard]>=0.27.0
 
 [dev]
 pytest>=7.0

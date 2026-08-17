@@ -12,7 +12,7 @@ import { useState } from "react"
 
 export interface JsonViewerProps {
   title: string
-  data: string
+  data: unknown
   copyLabel?: string
 }
 
@@ -21,13 +21,13 @@ export function JsonViewer({ title, data, copyLabel = "Copy JSON" }: JsonViewerP
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(data)
+      await navigator.clipboard.writeText(parsed)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
       // Fallback for older browsers
       const textarea = document.createElement("textarea")
-      textarea.value = data
+      textarea.value = parsed
       document.body.appendChild(textarea)
       textarea.select()
       document.execCommand("copy")
@@ -37,32 +37,28 @@ export function JsonViewer({ title, data, copyLabel = "Copy JSON" }: JsonViewerP
     }
   }
 
-  const parsed = typeof data === "object" ? JSON.stringify(data, null, 2) : data
+  const parsed = typeof data === "string" ? data : JSON.stringify(data, null, 2)
 
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <h4 className="font-medium">{title}</h4>
+    <section>
+      <div className="mb-2 flex items-center justify-between border-b border-[var(--phosphor-dim)] pb-2">
+        <div><p className="tech-label">Data dump // read only</p><h4 className="font-interface mt-1 text-xs font-semibold uppercase tracking-[.1em]">{title}</h4></div>
         <button
           onClick={handleCopy}
-          className="text-sm text-primary-600 hover:text-primary-800"
+          className="tech-button"
           title="Copy JSON"
-          aria-label="Copy JSON">
+          aria-label={copyLabel}>
           {copied ? "Copied!" : copyLabel}
         </button>
       </div>
 
-      <div
-        className`
-          bg-muted-100 rounded rounded-border p-3 max-h-[400px] overflow-auto text-sm
-        `
-      >
-        <pre className="whitespace-pre-wrap">{parsed}</pre>
+      <div className="max-h-[360px] overflow-auto border border-[var(--border-subtle)] bg-[var(--surface-deep)] p-3">
+        <pre className="whitespace-pre-wrap font-terminal text-base leading-tight text-[var(--phosphor)]">{parsed}</pre>
       </div>
 
       {copied && (
-        <p className="text-xs text-success">Copied to clipboard</p>
+        <p className="tech-label mt-2 text-[var(--phosphor-bright)]">Buffer::copied</p>
       )}
-    </div>
+    </section>
   )
 }

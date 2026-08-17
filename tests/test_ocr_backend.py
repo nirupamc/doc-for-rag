@@ -179,6 +179,72 @@ class TestTesseractOCRBackend:
         assert blocks[0].reading_order == 0
         assert blocks[1].reading_order == 1
 
+    def test_tesseract_paragraphs_become_separate_blocks(self):
+        """Paragraph hierarchy must not be collapsed into one coarse block."""
+        doc, page, derot = self._make_page_and_derot()
+        ocr_data = {
+            "text": ["First", "paragraph", "Second", "paragraph"],
+            "conf": [90, 91, 92, 93],
+            "block_num": [1, 1, 1, 1],
+            "par_num": [1, 1, 2, 2],
+            "line_num": [1, 1, 1, 1],
+            "word_num": [1, 2, 1, 2],
+            "left": [100, 180, 140, 230],
+            "top": [100, 100, 200, 200],
+            "width": [60, 90, 70, 90],
+            "height": [30, 30, 30, 30],
+        }
+
+        with patch('pytesseract.get_tesseract_version', return_value='5.3.0'):
+            blocks = TesseractOCRBackend()._group_into_blocks(
+                ocr_data, 1, 2550, 3300, 612, 792, derot
+            )
+
+        doc.close()
+        assert [block.text for block in blocks] == [
+            "First paragraph", "Second paragraph"
+        ]
+        assert blocks[0].bbox.y1 < blocks[1].bbox.y0
+        assert [block.reading_order for block in blocks] == [0, 1]
+
+    def test_clear_first_line_indent_splits_tesseract_paragraph(self):
+        """A missed Tesseract paragraph boundary is recovered geometrically."""
+        lines = [
+            [{"left": 100, "height": 30, "word_num": 1, "text": "end."}],
+            [{"left": 150, "height": 30, "word_num": 1, "text": "New"}],
+            [{"left": 101, "height": 30, "word_num": 1, "text": "continues"}],
+        ]
+
+        groups = TesseractOCRBackend._split_indented_paragraphs(lines)
+
+        assert [[word["text"] for word in group] for group in groups] == [
+            ["end."], ["New", "continues"]
+        ]
+
+    def test_non_alphanumeric_noise_is_filtered(self):
+        """Isolated punctuation artifacts must not become tiny OCR blocks."""
+        doc, page, derot = self._make_page_and_derot()
+        ocr_data = {
+            "text": ["Body", "|"],
+            "conf": [95, 20],
+            "block_num": [1, 2],
+            "par_num": [1, 1],
+            "line_num": [1, 1],
+            "word_num": [1, 1],
+            "left": [100, 20],
+            "top": [100, 120],
+            "width": [80, 2],
+            "height": [30, 4],
+        }
+
+        with patch('pytesseract.get_tesseract_version', return_value='5.3.0'):
+            blocks = TesseractOCRBackend()._group_into_blocks(
+                ocr_data, 1, 2550, 3300, 612, 792, derot
+            )
+
+        doc.close()
+        assert [block.text for block in blocks] == ["Body"]
+
     def test_confidence_normalization(self):
         """Test confidence normalization from 0-100 to 0.0-1.0."""
         doc, page, derot = self._make_page_and_derot()
@@ -276,7 +342,7 @@ class TestTesseractOCRBackend:
         # For 90°: page.rect = (0, 0, 792, 612), pixmap = 3300x2550
         # Word at pixel (300, 246) in 3300x2550 image
         # Page coords: (300*792/3300, 246*612/2550) = (72, 59)
-        # Canonical: apply derotation matrix
+        # The pixmap is already in the rotated page.rect orientation.
         ocr_data = {
             "text": ["Test"],
             "conf": [90],
@@ -299,13 +365,10 @@ class TestTesseractOCRBackend:
         doc.close()
         assert len(blocks) == 1
         bbox = blocks[0].bbox
-        # For 90°, canonical should be transformed
-        # (72, 59) * derotation_matrix(90) = (59, 720) approximately
-        # Just verify it's a valid bbox with correct coordinate range
-        assert 0 <= bbox.x0 <= 612
-        assert 0 <= bbox.y0 <= 792
-        assert 0 <= bbox.x1 <= 612
-        assert 0 <= bbox.y1 <= 792
+        assert abs(bbox.x0 - 72) < 1
+        assert abs(bbox.y0 - 59) < 1
+        assert 0 <= bbox.x1 <= 792
+        assert 0 <= bbox.y1 <= 612
 
     def test_get_dpi(self):
         """Test get_dpi returns configured DPI."""

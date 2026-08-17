@@ -12,7 +12,7 @@ export const API_BASE_URL =
   process.env.NEXT_PUBLIC_RAGPARSER_API_URL || "http://127.0.0.1:8000"
 
 const debug = (msg: string, ...args: unknown[]) => {
-  if (import.meta.env.DEV) {
+  if (process.env.NODE_ENV === "development") {
     console.debug(`[ragparser-frontend] ${msg}`, ...args)
   }
 }
@@ -105,7 +105,6 @@ export interface ExtractionReport {
     header: number
     footer: number
     page_number: number
-    unknown: number
   }
   ocr_block_count: number
   blocks_with_confidence: number

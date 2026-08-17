@@ -17,6 +17,9 @@ Requires-Dist: pymupdf>=1.23.0
 Requires-Dist: typer>=0.9.0
 Requires-Dist: pytesseract>=0.3.10
 Requires-Dist: pillow>=10.0.0
+Requires-Dist: fastapi>=0.100.0
+Requires-Dist: python-multipart>=0.0.5
+Requires-Dist: uvicorn[standard]>=0.27.0
 Provides-Extra: dev
 Requires-Dist: pytest>=7.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0; extra == "dev"

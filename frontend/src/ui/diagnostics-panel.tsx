@@ -1,148 +1,42 @@
-/* DiagnosticsPanel — Inspect the ExtractionReport.
-
- * Shows:
- *   - overall status
- *   - status reasons
- *   - problem pages
- *   - warnings
- *   - OCR diagnostics
- *   - layout counts
- *   - structure counts
- */
-
 "use client"
 
-import { ExtractionReport } from "@/lib/api"
+import type { ExtractionReport } from "@/lib/api"
 
-export interface DiagnosticsPanelProps {
-  report: ExtractionReport
-}
-
-export function DiagnosticsPanel({ report }: DiagnosticsPanelProps) {
-  const statusLabels: Record<string, string> = {
-    good: "GOOD",
-    review: "REVIEW",
-    poor: "POOR",
-  }
-
-  const statusClass: Record<string, string> = {
-    good: "bg-green-100 text-green-800",
-    review: "bg-yellow-100 text-yellow-800",
-    poor: "bg-red-100 text-red-800",
-  }
-
+export function DiagnosticsPanel({ report }: { report: ExtractionReport }) {
   return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-sm text-muted-foreground">Overall status</p>
-        <span className={`inline-block px-2 py-1 rounded text-sm font-medium ${statusClass[report.status]}`}>
-          {statusLabels[report.status]}
-        </span>
-      </div>
+    <section>
+      <header className="mb-4 flex items-end justify-between border-b border-[var(--phosphor-dim)] pb-2">
+        <div><p className="tech-label">Machine report // 04</p><h3 className="tech-heading mt-1 text-3xl">Extraction diagnostics</h3></div>
+        <span className={`font-display text-4xl leading-none ${tone(report.status)}`}>{report.status.toUpperCase()}</span>
+      </header>
+      <DiagnosticGroup title="Extraction">
+        <Metric label="Native" value={report.extraction_method_counts.native ?? 0} />
+        <Metric label="OCR" value={report.extraction_method_counts.ocr ?? 0} />
+        <Metric label="Failed pages" value={report.extraction_status_counts.failed ?? 0} warning={(report.extraction_status_counts.failed ?? 0) > 0} />
+      </DiagnosticGroup>
+      <DiagnosticGroup title="OCR signal">
+        <Metric label="Blocks" value={report.ocr_block_count} />
+        <Metric label="Confidence samples" value={report.blocks_with_confidence} />
+        <Metric label="Median confidence" value={report.median_ocr_confidence?.toFixed(2) ?? "—"} />
+        <Metric label="Minimum confidence" value={report.min_ocr_confidence?.toFixed(2) ?? "—"} />
+        <Metric label="Low confidence" value={report.low_confidence_block_count} warning={report.low_confidence_block_count > 0} />
+      </DiagnosticGroup>
+      <DiagnosticGroup title="Layout / structure">
+        <Metric label="Single column" value={report.layout_mode_counts.single_column ?? 0} />
+        <Metric label="Two column" value={report.layout_mode_counts.two_column ?? 0} />
+        <Metric label="Uncertain" value={report.layout_mode_counts.uncertain ?? 0} warning={(report.layout_mode_counts.uncertain ?? 0) > 0} />
+        <Metric label="Paragraph" value={report.block_role_counts.paragraph ?? 0} />
+        <Metric label="Heading" value={report.block_role_counts.heading ?? 0} />
+        <Metric label="Unknown" value={report.block_role_counts.unknown ?? 0} />
+      </DiagnosticGroup>
 
-      {report.status_reasons.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Status reasons</p>
-          <ul className="list-disc list-inside text-sm">
-            {report.status_reasons.map((reason, i) => (
-              <li key={i} className="mb-1">
-                <strong>{reason.category.toUpperCase()}:</strong> {reason.message}{" "}
-                {reason.count !== null && reason.count > 0 && (
-                  <span className="ml-2">
-                    ({reason.count} page{s:1}{
-                      reason.page_numbers &&
-                      reason.page_numbers.length > 0
-                        ? ` pages ${reason.page_numbers.map((p) => `#${p}`).join(", ")}`)
-                        : ""
-                    })
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div>
-        <p className="text-sm text-muted-foreground">Problem pages</p>
-        {report.problem_pages.length > 0 ? (
-          <span>
-            {report.problem_pages.map((p, i) => (
-              <span key={p} className="mr-1">
-                #{p}
-              </span>
-            ))}
-          </span>
-        ) : (
-          <span className="text-muted-foreground">None</span>
-        )}
-      </div>
-
-      {report.warnings.length > 0 && (
-        <div>
-          <p className="text-sm text-muted-foreground">Warnings</p>
-          <ul className="list-disc list-inside text-sm">
-            {report.warnings.map((w, i) => (
-              <li key={i}>{w.message}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* OCR diagnostics */}
-      <div>
-        <p className="text-sm text-muted-foreground">OCR diagnostics</p>
-        <dl className="grid grid-cols-2 gap-2 text-sm">
-          <dt>OCR blocks</dt>
-          <dd>{report.ocr_block_count}</dd>
-          <dt>Blocks with confidence</dt>
-          <dd>{report.blocks_with_confidence}</dd>
-          <dt>Median confidence</dt>
-          <dd>{report.median_ocr_confidence?.toFixed(2) ?? "N/A"}</dd>
-          <dt>Min confidence</dt>
-          <dd>{report.min_ocr_confidence?.toFixed(2) ?? "N/A"}</dd>
-          <dt>Low confidence blocks</dt>
-          <dd>{report.low_confidence_block_count}</dd>
-          <dt>Pages with low confidence</dt>
-          <dd>
-            {report.pages_with_low_confidence.length > 0
-              ? report.pages_with_low_confidence.map((p) => `#${p}`).join(", ")
-              : "None"}
-          </dd>
-        </dl>
-      </div>
-
-      {/* Layout counts */}
-      <div>
-        <p className="text-sm text-muted-foreground">Layout mode counts</p>
-        <dl className="grid grid-cols-3 gap-2 text-xs">
-          <dt>Single column</dt>
-          <dd>{report.layout_mode_counts.single_column}</dd>
-          <dt>Two column</dt>
-          <dd>{report.layout_mode_counts.two_column}</dd>
-          <dt>Uncertain</dt>
-          <dd>{report.layout_mode_counts.uncertain}</dd>
-        </dl>
-      </div>
-
-      {/* Block role counts */}
-      <div>
-        <p className="text-sm text-muted-foreground">Block role counts</p>
-        <dl className="grid grid-cols-6 gap-1 text-xxs">
-          <dt>unknown</dt>
-          <dd>{report.block_role_counts.unknown}</dd>
-          <dt>heading</dt>
-          <dd>{report.block_role_counts.heading}</dd>
-          <dt>paragraph</dt>
-          <dd>{report.block_role_counts.paragraph}</dd>
-          <dt>header</dt>
-          <dd>{report.block_role_counts.header}</dd>
-          <dt>footer</dt>
-          <dd>{report.block_role_counts.footer}</dd>
-          <dt>page_number</dt>
-          <dd>{report.block_role_counts.page_number}</dd>
-        </dl>
-      </div>
-    </div>
+      {report.status_reasons.length > 0 && <div className="section-rule mt-4 pt-3"><p className="tech-label mb-2">Status reasons</p><ul className="space-y-1 font-terminal text-base leading-tight">{report.status_reasons.map((reason, index) => <li key={index}><span className="text-[var(--amber)]">{reason.category.toUpperCase()}::</span>{reason.message}{reason.page_numbers?.length ? ` [P${reason.page_numbers.join("/P")}]` : ""}</li>)}</ul></div>}
+      {report.warnings.length > 0 && <div className="section-rule mt-4 pt-3"><p className="tech-label mb-2 text-[var(--amber)]">Warning register</p><ul className="font-terminal text-base text-[var(--amber)]">{report.warnings.map((warning, index) => <li key={index}>WARN::P{String(warning.page).padStart(3, "0")}::{warning.message}</li>)}</ul></div>}
+      <p className={`mt-4 border-l-2 px-3 py-1 font-terminal text-lg uppercase ${report.problem_pages.length ? "border-[var(--amber)] bg-[var(--warning-bg)] text-[var(--amber)]" : "border-[var(--text)] bg-[var(--good-bg)] text-[var(--text-strong)]"}`}>{report.problem_pages.length ? `Review required // ${report.problem_pages.length} page(s)` : "System::no critical anomalies detected"}</p>
+    </section>
   )
 }
+
+function DiagnosticGroup({ title, children }: { title: string; children: React.ReactNode }) { return <div className="mb-3"><p className="tech-label mb-1">{title}</p><dl className="border-y border-[var(--phosphor-very-dim)] py-1">{children}</dl></div> }
+function Metric({ label, value, warning = false }: { label: string; value: number | string; warning?: boolean }) { return <div className="flex justify-between font-terminal text-lg leading-tight"><dt className="text-[var(--phosphor-dim)]">{label.toUpperCase()}</dt><dd className={warning ? "text-[var(--amber)]" : "text-[var(--phosphor)]"}>{typeof value === "number" ? String(value).padStart(3, "0") : value}</dd></div> }
+function tone(status: string) { return status === "good" ? "text-[var(--phosphor-bright)]" : status === "review" ? "text-[var(--amber)]" : "text-[var(--red)]" }
