@@ -1,0 +1,4 @@
+Usage: modal serve [OPTIONS] APP_REF
+Try 'modal serve -h' for help.
+
+Error: <fastapi.applications.FastAPI object at 0x000001C2AEF184D0> is not a Modal App

@@ -1,0 +1,52 @@
+Help on function blocking_function in module modal.app:
+
+blocking_function(self, _warn_parentheses_missing=None, *, image: modal._image._Image | None = None, schedule: modal.schedule.Schedule | None = None, env: dict[str, str | None] | None = None, secrets: collections.abc.Collection[modal.secret._Secret] | None = None, gpu: str | list[str] | None = None, serialized: bool = False, network_file_systems: dict[str | pathlib.PurePosixPath, modal.network_file_system._NetworkFileSystem] = {}, volumes: dict[str | pathlib.PurePosixPath, modal.volume._Volume | modal.cloud_bucket_mount._CloudBucketMount] = {}, cpu: float | tuple[float, float] | None = None, memory: int | tuple[int, int] | None = None, ephemeral_disk: int | None = None, min_containers: int | None = None, max_containers: int | None = None, buffer_containers: int | None = None, scaledown_window: int | None = None, proxy: modal.proxy._Proxy | None = None, retries: int | modal.retries.Retries | None = None, timeout: int = 300, startup_timeout: int | None = None, name: str | None = None, is_generator: None | bool = None, cloud: str | None = None, region: str | collections.abc.Sequence[str] | None = None, routing_region: str | None = None, nonpreemptible: bool = False, enable_memory_snapshot: bool = False, block_network: bool = False, restrict_modal_access: bool = False, single_use_containers: bool = False, i6pn: bool | None = None, include_source: bool | None = None, experimental_options: dict[str, typing.Any] | None = None, _experimental_restrict_output: bool = False, max_inputs: int | None = None) -> modal.app._FunctionDecoratorType
+    Decorator to register a new Modal Function with this App.
+    
+    Args:
+        image: The image to run as the container for the function.
+        schedule: An optional Modal Schedule for the function.
+        env: Environment variables to set in the container.
+        secrets: Secrets to inject into the container as environment variables.
+        gpu: GPU request; either a single GPU type or a list of types.
+        serialized: Whether to send the function over using cloudpickle.
+        network_file_systems: Mountpoints for Modal NetworkFileSystems.
+        volumes: Mount points for Modal Volumes & CloudBucketMounts.
+        cpu:
+            Specify, in fractional CPU cores, how many CPU cores to request. Or, pass (request, limit) to
+            additionally specify a hard limit in fractional CPU cores. CPU throttling will prevent a container from
+            exceeding its specified limit.
+        memory:
+            Specify, in MiB, a memory request which is the minimum memory required. Or, pass (request, limit) to
+            additionally specify a hard limit in MiB.
+        ephemeral_disk: Specify, in MiB, the ephemeral disk size for the Function.
+        min_containers: Minimum number of containers to keep warm, even when Function is idle.
+        max_containers: Limit on the number of containers that can be concurrently running.
+        buffer_containers: Number of additional idle containers to maintain under active load.
+        scaledown_window: Max time (in seconds) a container can remain idle while scaling down.
+        proxy: Reference to a Modal Proxy to use in front of this function.
+        retries: Number of times to retry each input in case of failure.
+        timeout: Maximum execution time for inputs and startup time in seconds.
+        startup_timeout: Maximum startup time in seconds with higher precedence than `timeout`.
+        name: Sets the Modal name of the function within the app.
+        is_generator:
+            Set this to True if it's a non-generator function returning a sync or async generator object.
+        cloud: Cloud provider to run the function on. Possible values are aws, gcp, oci, auto.
+        region: Region or regions to run the function on.
+        routing_region: Region to route inputs to the function through.
+        nonpreemptible: Whether to run the function on a nonpreemptible instance.
+        enable_memory_snapshot: Enable memory checkpointing for faster cold starts.
+        block_network: Whether to block network access.
+        restrict_modal_access: Whether to allow this function access to other Modal resources.
+        single_use_containers: When True, containers will shut down after handling a single input.
+        i6pn: Whether to enable IPv6 container networking within the region.
+        include_source:
+            Whether the file or directory containing the Function's source should automatically be included in the
+            container. When unset, falls back to the App-level configuration, or is otherwise True by default.
+        experimental_options: Experimental options for the function.
+        _experimental_restrict_output: Experimental; do not use pickle for return values.
+        max_inputs: Deprecated; replaced with `single_use_containers`.
+    
+    Returns:
+        A decorator that registers the wrapped callable or partial as a Modal `Function`.
+
