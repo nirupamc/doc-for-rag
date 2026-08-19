@@ -1,0 +1,8 @@
+Γ£ô Initialized. View run at 
+https://modal.com/apps/nirupamchangmai99/main/ap-ovKTmdNZRXe5IMJmbAyvSm
+Γ£ô Created objects.
+Γö£ΓöÇΓöÇ ≡ƒö¿ Created mount D:\protofolo projectzzz\ragparser\modal_app.py
+ΓööΓöÇΓöÇ ≡ƒö¿ Created web function fastapi_app => 
+    https://nirupamchangmai99--ragparser-fastapi-app-dev.modal.run
+∩╕Å∩╕ÅΓÜí∩╕Å Serving... hit Ctrl-C to stop!
+ΓööΓöÇΓöÇ Watching D:\protofolo projectzzz\ragparser.

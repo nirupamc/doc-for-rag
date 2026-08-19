@@ -108,7 +108,7 @@ export function PDFViewer({
               onRenderSuccess={measureCanvas}
               onRenderError={(cause) => setError(cause.message)}
             />
-            {renderedSize.width > 0 && renderedSize.height > 0 && (showBboxes || showLabels) && (
+            {renderedSize.width > 0 && renderedSize.height > 0 && (
               <svg
                 className="absolute left-0 top-0"
                 width={renderedSize.width}
@@ -165,6 +165,9 @@ function BlockOverlay({
   const y = block.bbox.y0 * scaleY
   const width = Math.max(0, (block.bbox.x1 - block.bbox.x0) * scaleX)
   const height = Math.max(0, (block.bbox.y1 - block.bbox.y0) * scaleY)
+  const active = highlighted || selected
+  const drawBox = showBox || active
+  const drawLabel = showLabel || active
   const stroke = selected ? "var(--overlay-selected)" : highlighted ? "var(--overlay-hover)" : "var(--overlay)"
 
   return (
@@ -175,8 +178,8 @@ function BlockOverlay({
       onClick={() => onSelect(selected ? null : block.reading_order)}
     >
       <rect x={x} y={y} width={width} height={height} fill="transparent" pointerEvents="all" />
-      {showBox && <rect x={x} y={y} width={width} height={height} fill={selected ? "var(--overlay-fill)" : "none"} stroke={stroke} strokeWidth={selected || highlighted ? 2 : 1} style={selected ? { filter: "var(--overlay-glow)" } : undefined} pointerEvents="none" />}
-      {showLabel && (
+      {drawBox && <rect x={x} y={y} width={width} height={height} fill={selected ? "var(--overlay-fill)" : "none"} stroke={stroke} strokeWidth={selected || highlighted ? 2 : 1} style={selected ? { filter: "var(--overlay-glow)" } : undefined} pointerEvents="none" />}
+      {drawLabel && (
         <g pointerEvents="none">
           <rect x={x} y={Math.max(0, y - 13)} width={Math.max(42, block.role.length * 6)} height={13} fill="var(--overlay-label-bg)" stroke={stroke} strokeWidth="1" />
           <text x={x + 3} y={Math.max(10, y - 3)} fill={stroke} fontFamily="VT323, monospace" fontSize="10">{block.role.toUpperCase()}::{String(block.reading_order + 1).padStart(2, "0")}</text>

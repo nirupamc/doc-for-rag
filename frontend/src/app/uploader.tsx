@@ -105,17 +105,17 @@ export function UploadPanel({ onParseSuccess }: UploadPanelProps) {
               <StatusBadge status="good" size="sm" />
               <span className="text-sm">{file.name} ({(file.size / 1024).toFixed(1)} KB)</span>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 disabled={busy}
                 onClick={handleParse}
-                className="tech-button tech-button-primary disabled:cursor-wait disabled:opacity-50"
+                className="tech-button-primary"
               >
-                {busy ? "Processing document…" : "Parse PDF"}
+                {busy ? "> Processing…" : "> Parse document"}
               </button>
-              <button type="button" disabled={busy} onClick={clear} className="tech-button">
-                Remove
+              <button type="button" disabled={busy} onClick={clear} className="tech-button-secondary">
+                [ Remove ]
               </button>
             </div>
           </div>
