@@ -2,11 +2,38 @@
 
 import modal
 
-app = modal.App(name="ragparser")
+app = modal.App("ragparser")
+
+image = (
+    modal.Image.debian_slim(python_version="3.11")
+    .apt_install(
+        "tesseract-ocr",
+        "tesseract-ocr-eng",
+    )
+    .pip_install(
+        "fastapi>=0.100.0",
+        "uvicorn[standard]>=0.27.0",
+        "python-multipart>=0.0.5",
+        "pymupdf",
+        "pytesseract",
+        "pillow",
+        "typer",
+    )
+    .add_local_python_source("ragparser")
+)
 
 
-@app.function()
+@app.function(
+    image=image,
+    min_containers=1,
+    scaledown_window=600,
+    env={
+        "RAGPARSER_CORS_ORIGINS":
+            "http://localhost:3000,https://doc-for-rag.vercel.app"
+    },
+)
 @modal.asgi_app()
 def fastapi_app():
     from ragparser.web.app import create_app
+
     return create_app()
